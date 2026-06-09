@@ -61,6 +61,55 @@
   .decor-tl { top: -16px; left: -16px; width: 176px; opacity: 0.8; }
   .decor-br { bottom: -16px; right: -16px; width: 160px; opacity: 0.7; transform: rotate(180deg); }
 
+  /* ========================================
+     ホームへスキップボタン（カウントダウン画面・解放後のみ表示）
+     ======================================== */
+  .skip-home-btn {
+    position: absolute;
+    top: calc(20px + env(safe-area-inset-top, 0px));
+    right: 16px;
+    z-index: 100;
+    display: none; /* デフォルト非表示。JS が解放後に showSkipButton() で表示する */
+    align-items: center;
+    gap: 5px;
+    padding: 7px 13px 7px 11px;
+    background: rgba(250, 247, 240, 0.92);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(201, 182, 144, 0.4);
+    border-radius: 18px;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 11.5px;
+    letter-spacing: 0.12em;
+    color: #7d8a6a;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(90, 82, 72, 0.12);
+    transition: transform 0.15s, box-shadow 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .skip-home-btn.visible { display: inline-flex; }
+  .skip-home-btn:active { transform: scale(0.95); }
+  .skip-home-icon {
+    font-size: 13px;
+    line-height: 1;
+    color: #9aa882;
+    display: inline-block;
+    transform: translateY(-0.5px);
+  }
+  .skip-home-text {
+    font-weight: 400;
+  }
+  /* Memory を一度完了したユーザーには少し目立たせる */
+  .skip-home-btn.completed {
+    background: rgba(245, 240, 225, 0.96);
+    border-color: #c9b690;
+    color: #5a5248;
+    box-shadow: 0 3px 10px rgba(125, 138, 106, 0.22);
+  }
+  .skip-home-btn.completed .skip-home-icon {
+    color: #7d8a6a;
+  }
+
   /* ===== ロック画面：上部 ===== */
   .top {
     position: relative;
@@ -1386,90 +1435,283 @@
     letter-spacing: 0.05em;
   }
 
-  /* ============ Journey タブ ============ */
-  .jrn-list {
+  /* ============ Album タブ ============
+     コンセプト：机に無造作に広げたポラロイド写真
+     - 絶対配置 + JS で位置・サイズ・回転を計算
+     - 写真同士が自然に重なる
+     - 写真ごとに縦・横・正方形が混在
+  */
+  .home-panel.album-panel {
+    background:
+      radial-gradient(ellipse at 25% 12%, rgba(255, 245, 225, 0.5) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 88%, rgba(240, 226, 200, 0.4) 0%, transparent 55%),
+      linear-gradient(180deg, #faf5e8 0%, #f3eada 100%);
+  }
+  /* Album パネルのヘッダーをスリムに */
+  .album-panel .album-panel-header {
+    padding-top: 6px;
+    margin-bottom: 6px;
+  }
+  .album-panel .album-panel-header .panel-title {
+    font-size: 22px;
+    margin-bottom: 2px;
+  }
+  .album-panel .album-panel-header .panel-sub-jp {
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+  }
+
+  /* スクラップブック：相対位置のコンテナ。
+     JS が各 .alb-card に absolute top/left/width をセットする。 */
+  .alb-collage {
     position: relative;
-    padding-left: 90px;
+    width: 100%;
+    /* JS が --alb-height に総合高さをセット */
+    min-height: var(--alb-height, 600px);
+    padding: 4px 0 200px;     /* 下に180-200pxの余白で「切れた感」を防ぐ */
+    box-sizing: border-box;
   }
-  .jrn-list::before {
-    content: '';
+
+  /* ポラロイドカード（絶対配置） */
+  .alb-card {
     position: absolute;
-    left: 70px;
-    top: 8px;
-    bottom: 8px;
-    width: 1px;
-    background: #ddd4c0;
+    /* width / top / left は JS が設定 */
+    background: #ffffff;
+    /* 上 4px / 左右 4px / 下 22px（上の5.5倍）= 本物のポラロイド比率 */
+    padding: 4px 4px 22px 4px;
+    box-shadow:
+      0 8px 18px rgba(80, 70, 55, 0.22),
+      0 2px 5px  rgba(80, 70, 55, 0.12);
+    border-radius: 1.5px;
+    box-sizing: border-box;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    /* 初期：少し下にずれて非表示 */
+    opacity: 0;
+    transform: rotate(0deg) translateY(8px);
+    transition: opacity 0.65s ease-out, transform 0.65s ease-out;
+    /* z-index は JS が設定 */
   }
-  .jrn-item {
+  .alb-card.in-view {
+    opacity: 1;
+    transform: rotate(var(--alb-rot, 0deg)) translateY(0);
+  }
+  .alb-card:active {
+    transform: rotate(var(--alb-rot, 0deg)) scale(0.95);
+    transition: transform 0.12s;
+    z-index: 999 !important;
+  }
+
+  /* 写真エリア：縦横比は写真自身に追従 */
+  .alb-photo {
     position: relative;
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-    align-items: flex-start;
+    width: 100%;
+    background: #ece5d6;
+    overflow: hidden;
+    line-height: 0;
   }
-  .jrn-year {
-    position: absolute;
-    left: -78px;
-    top: 4px;
-    width: 56px;
-    text-align: left;
-    font-family: 'Cormorant Garamond', serif;
-    color: #8b8275;
-    font-size: 12px;
-    line-height: 1.4;
-    letter-spacing: 0.1em;
-  }
-  .jrn-year-num {
-    font-size: 14px;
-    color: #4a443c;
+  .alb-photo img {
+    width: 100%;
+    height: auto;
     display: block;
   }
-  .jrn-dot {
-    position: absolute;
-    left: -22px;
-    top: 8px;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #7d8a6a;
-    border: 2px solid #faf7f0;
-    box-shadow: 0 0 0 1px #ddd4c0;
+  /* キャプション（下余白の中に納める） */
+  .alb-caption {
+    padding: 4px 2px 0;
+    text-align: left;
   }
-  .jrn-thumb {
-    width: 86px;
-    height: 86px;
-    flex-shrink: 0;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #e8d4d0 0%, #cdd6bc 100%);
+  .alb-date {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 8px;
+    color: #b39a6d;
+    letter-spacing: 0.14em;
+    margin-bottom: 1px;
+    line-height: 1.2;
+  }
+  .alb-date:empty { display: none; }
+  .alb-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 9px;
+    color: #4a443c;
+    letter-spacing: 0.02em;
+    margin-bottom: 1px;
+    line-height: 1.3;
+    font-weight: 500;
+  }
+  .alb-title:empty { display: none; }
+  .alb-comment {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 8px;
+    color: #7d6f5e;
+    line-height: 1.4;
+  }
+  .alb-comment:empty { display: none; }
+
+  /* マスキングテープ */
+  .alb-tape {
+    position: absolute;
+    top: -5px;
+    width: 26px;
+    height: 10px;
+    z-index: 3;
+    pointer-events: none;
+    box-shadow: 0 1px 2px rgba(60, 50, 40, 0.13);
+    opacity: 0.78;
+  }
+  .alb-tape.tape-1 { background: rgba(232, 213, 175, 0.85); }
+  .alb-tape.tape-2 { background: rgba(220, 195, 160, 0.78); }
+  .alb-tape.tape-3 { background: rgba(225, 220, 200, 0.85); }
+  .alb-tape.tape-4 { background: repeating-linear-gradient(135deg, rgba(230,210,170,0.85) 0 4px, rgba(215,195,160,0.85) 4px 8px); }
+
+  /* ペーパークリップ */
+  .alb-clip {
+    position: absolute;
+    top: -7px;
+    right: 8px;
+    width: 8px;
+    height: 16px;
+    border-radius: 4px 4px 3px 3px;
+    border: 1.5px solid #b8a888;
+    background: transparent;
+    z-index: 3;
+    transform: rotate(-12deg);
+    pointer-events: none;
+    box-shadow: 0 1px 2px rgba(60, 50, 40, 0.12);
+  }
+  /* 押し花装飾 */
+  .alb-flower {
+    position: absolute;
+    bottom: -8px;
+    width: 16px;
+    height: 18px;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.55;
+    font-size: 14px;
+    line-height: 1;
+    color: #b39a6d;
+  }
+
+  /* 空のアルバム */
+  .alb-empty {
+    padding: 60px 32px;
+    text-align: center;
+    color: #b39a6d;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 13.5px;
+    line-height: 2;
+  }
+  .alb-empty-icon {
+    font-size: 36px;
+    margin-bottom: 16px;
+    opacity: 0.55;
+  }
+  .alb-empty-sub {
+    margin-top: 14px;
+    font-size: 11.5px;
+    color: #a89678;
+    letter-spacing: 0.08em;
+  }
+
+  /* ============ Album: 写真拡大モーダル ============ */
+  .alb-viewer {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 16, 12, 0.94);
+    z-index: 99999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    touch-action: none;
+    overscroll-behavior: contain;
+  }
+  .alb-viewer.active {
+    display: flex;
+    animation: albViewerFade 0.25s ease-out;
+  }
+  @keyframes albViewerFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .alb-viewer-close {
+    position: absolute;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    left: 14px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    z-index: 3;
+    -webkit-tap-highlight-color: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(250, 247, 240, 0.85);
-    font-size: 26px;
-    overflow: hidden;
   }
-  .jrn-thumb img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .jrn-body {
-    flex: 1;
-    padding-top: 4px;
-  }
-  .jrn-title {
-    font-family: 'Shippori Mincho', serif;
+  .alb-viewer-close:active { transform: scale(0.92); }
+  .alb-viewer-counter {
+    position: absolute;
+    top: calc(22px + env(safe-area-inset-top, 0px));
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.85);
+    font-family: 'Cormorant Garamond', serif;
     font-size: 14px;
-    color: #4a443c;
-    font-weight: 500;
-    margin-bottom: 4px;
+    letter-spacing: 0.25em;
+    z-index: 2;
+    pointer-events: none;
   }
-  .jrn-text {
-    font-family: 'Caveat', cursive;
-    font-size: 13px;
-    color: #8b8275;
-    line-height: 1.4;
+  .alb-viewer-inner {
+    position: relative;
+    width: 92%;
+    max-width: 480px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.25s ease-out, opacity 0.25s ease-out;
   }
+  .alb-viewer-photo {
+    width: 100%;
+    max-height: 65vh;
+    object-fit: contain;
+    background: #1a1612;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+  }
+  .alb-viewer-caption {
+    color: #f0e2c6;
+    text-align: center;
+    font-family: 'Shippori Mincho', serif;
+    padding: 0 12px;
+    max-width: 100%;
+  }
+  .alb-viewer-date {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 12px;
+    color: #d6c79f;
+    letter-spacing: 0.26em;
+    margin-bottom: 6px;
+  }
+  .alb-viewer-date:empty { display: none; }
+  .alb-viewer-title {
+    font-size: 15px;
+    margin-bottom: 6px;
+    letter-spacing: 0.05em;
+    color: #f5ead2;
+  }
+  .alb-viewer-title:empty { display: none; }
+  .alb-viewer-comment {
+    font-size: 12.5px;
+    color: #d8cfc0;
+    line-height: 1.7;
+  }
+  .alb-viewer-comment:empty { display: none; }
 
   /* ============ Story タブ ============ */
   .stry-intro {
@@ -2785,6 +3027,343 @@
     border: 1px solid #7d8a6a;
     box-shadow: none;
   }
+
+  /* コンテンツ管理：フィールド */
+  .admin-field {
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    background: #faf7f0;
+    border: 1px solid #ece5d6;
+    border-radius: 8px;
+  }
+  .admin-field-label {
+    display: block;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 12.5px;
+    color: #4a443c;
+    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+  }
+  .admin-field-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #c9b690;
+    border-radius: 6px;
+    font-family: -apple-system, sans-serif;
+    font-size: 14px;
+    background: #fff;
+    color: #4a443c;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+  }
+  .admin-field-input:focus {
+    outline: none;
+    border-color: #7d8a6a;
+    box-shadow: 0 0 0 2px rgba(125, 138, 106, 0.15);
+  }
+  .admin-field-hint {
+    margin-top: 6px;
+    font-size: 10.5px;
+    color: #8b8275;
+    line-height: 1.5;
+  }
+  .admin-field-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .admin-field-actions .admin-add-btn {
+    flex: 1;
+    padding: 10px;
+    font-size: 12px;
+  }
+  .admin-field-status {
+    margin-top: 8px;
+    padding: 0 4px;
+    font-size: 11.5px;
+    min-height: 16px;
+    color: #6b8a5e;
+    font-family: 'Shippori Mincho', serif;
+  }
+  .admin-field-status.err { color: #c44; }
+
+  /* Schedule管理エディタ */
+  .admin-schedule-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .admin-sch-row {
+    background: #faf7f0;
+    border: 1px solid #ece5d6;
+    border-radius: 8px;
+    padding: 10px;
+    position: relative;
+  }
+  .admin-sch-row.secret-row {
+    background: #f5efe1;
+    border-color: #d8c79a;
+  }
+  .admin-sch-row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 6px;
+  }
+  .admin-sch-row-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: #7d8a6a;
+    font-weight: 600;
+    min-width: 28px;
+  }
+  .admin-sch-row-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .admin-sch-action-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid #ddd4c0;
+    background: #fff;
+    color: #7d8a6a;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .admin-sch-action-btn:active { transform: scale(0.92); }
+  .admin-sch-action-btn.delete {
+    border-color: #e8b4b4;
+    color: #c44;
+  }
+  .admin-sch-action-btn[disabled] {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .admin-sch-grid {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .admin-sch-input,
+  .admin-sch-textarea {
+    width: 100%;
+    padding: 7px 8px;
+    border: 1px solid #d8d0bd;
+    border-radius: 6px;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 12.5px;
+    background: #fff;
+    color: #4a443c;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+  }
+  .admin-sch-textarea {
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    resize: vertical;
+    min-height: 50px;
+    line-height: 1.5;
+  }
+  .admin-sch-input:focus,
+  .admin-sch-textarea:focus {
+    outline: none;
+    border-color: #7d8a6a;
+    box-shadow: 0 0 0 2px rgba(125, 138, 106, 0.15);
+  }
+  .admin-sch-label {
+    font-size: 10px;
+    color: #8b8275;
+    margin-bottom: 2px;
+    letter-spacing: 0.05em;
+  }
+  .admin-sch-field {
+    display: flex;
+    flex-direction: column;
+  }
+  .admin-sch-secret-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: #8b8275;
+  }
+  .admin-sch-secret-toggle input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+  }
+
+  /* Album管理エディタ */
+  .admin-album-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .admin-alb-row {
+    background: #faf5e8;
+    border: 1px solid #ece1c8;
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .admin-alb-row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 6px;
+  }
+  .admin-alb-row-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: #b39a6d;
+    font-weight: 600;
+    min-width: 28px;
+  }
+  .admin-alb-row-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .admin-alb-action-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid #ddd4c0;
+    background: #fff;
+    color: #b39a6d;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .admin-alb-action-btn:active { transform: scale(0.92); }
+  .admin-alb-action-btn.delete {
+    border-color: #e8b4b4;
+    color: #c44;
+  }
+  .admin-alb-action-btn[disabled] {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .admin-alb-grid {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .admin-alb-thumb {
+    width: 90px;
+    height: 90px;
+    border-radius: 6px;
+    background: #ece5d6;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #b39a6d;
+    font-size: 22px;
+    cursor: pointer;
+  }
+  .admin-alb-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .admin-alb-thumb-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(74, 68, 60, 0.6);
+    color: #fff;
+    font-size: 10px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4px;
+    font-family: 'Shippori Mincho', serif;
+  }
+  .admin-alb-thumb:hover .admin-alb-thumb-overlay,
+  .admin-alb-thumb:active .admin-alb-thumb-overlay {
+    display: flex;
+  }
+  .admin-alb-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .admin-alb-input,
+  .admin-alb-textarea {
+    width: 100%;
+    padding: 7px 8px;
+    border: 1px solid #d8d0bd;
+    border-radius: 6px;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 12.5px;
+    background: #fff;
+    color: #4a443c;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+  }
+  .admin-alb-textarea {
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    resize: vertical;
+    min-height: 44px;
+    line-height: 1.5;
+  }
+  .admin-alb-input:focus,
+  .admin-alb-textarea:focus {
+    outline: none;
+    border-color: #b39a6d;
+    box-shadow: 0 0 0 2px rgba(179, 154, 109, 0.18);
+  }
+  .admin-alb-label {
+    font-size: 10px;
+    color: #8b8275;
+    margin-bottom: 2px;
+    letter-spacing: 0.05em;
+  }
+  .admin-alb-field {
+    display: flex;
+    flex-direction: column;
+  }
+  .admin-alb-photo-btns {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .admin-alb-photo-btn {
+    flex: 1;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #c9b690;
+    background: #fff;
+    color: #7d6f5e;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 10.5px;
+    cursor: pointer;
+  }
+  .admin-alb-photo-btn.danger {
+    border-color: #e8b4b4;
+    color: #c44;
+  }
+  .admin-alb-photo-input {
+    display: none;
+  }
   .admin-danger-btn {
     background: transparent;
     color: #c44;
@@ -3333,6 +3912,12 @@
   <div class="bg" aria-hidden="true"></div>
   <div class="bg-overlay" aria-hidden="true"></div>
 
+  <!-- ホームへスキップボタン（解放後のみ表示） -->
+  <button class="skip-home-btn" id="skipHomeBtn" type="button" onclick="skipToHome()" aria-label="ホームへスキップ">
+    <span class="skip-home-icon">↗</span>
+    <span class="skip-home-text">ホームへ</span>
+  </button>
+
   <svg class="decor decor-tl" viewBox="0 0 200 200" aria-hidden="true">
     <g fill="none" stroke="#9aa882" stroke-width="1.2" opacity="0.55">
       <path d="M10 10 Q40 50 60 90 Q75 120 80 160" />
@@ -3647,151 +4232,23 @@
         </div>
         <div class="sch-intro">特別な一日を、心から楽しんでね。</div>
 
-        <div class="sch-list">
-          <div class="sch-item">
-            <div class="sch-icon">✈</div>
-            <div class="sch-card">
-              <div class="sch-card-body">
-                <div class="sch-time">12:00 · Reunion</div>
-                <div class="sch-card-title">空港で再会</div>
-                <div class="sch-card-sub">いよいよ始まり！</div>
-              </div>
-              <div class="sch-card-media m-air">🛬</div>
-            </div>
-          </div>
-
-          <div class="sch-item">
-            <div class="sch-icon">🍽</div>
-            <div class="sch-card">
-              <div class="sch-card-body">
-                <div class="sch-time">13:30 · Lunch</div>
-                <div class="sch-card-title">特別なランチ</div>
-                <div class="sch-card-sub">歴史を感じる場所で、<br>特別な時間を。</div>
-              </div>
-              <div class="sch-card-media m-lunch">🥐</div>
-            </div>
-          </div>
-
-          <div class="sch-item">
-            <div class="sch-icon">🌿</div>
-            <div class="sch-card">
-              <div class="sch-card-body">
-                <div class="sch-time">15:00 · Green Break</div>
-                <div class="sch-card-title">緑のひととき</div>
-                <div class="sch-card-sub">街中の緑で、ほっと一息。</div>
-              </div>
-              <div class="sch-card-media m-green">🌳</div>
-            </div>
-          </div>
-
-          <div class="sch-item">
-            <div class="sch-icon">💠</div>
-            <div class="sch-card">
-              <div class="sch-card-body">
-                <div class="sch-time">16:00 · Hydrangea</div>
-                <div class="sch-card-title">紫陽花スポット</div>
-                <div class="sch-card-sub">色とりどりの紫陽花に癒される。</div>
-              </div>
-              <div class="sch-card-media m-flower">💐</div>
-            </div>
-          </div>
-
-          <div class="sch-item">
-            <div class="sch-icon">☕</div>
-            <div class="sch-card">
-              <div class="sch-card-body">
-                <div class="sch-time">17:00 · Relax Time</div>
-                <div class="sch-card-title">カフェタイム</div>
-                <div class="sch-card-sub">のんびり会話を楽しもう。</div>
-              </div>
-              <div class="sch-card-media m-cafe">🫖</div>
-            </div>
-          </div>
-
-          <div class="sch-item">
-            <div class="sch-icon">🍷</div>
-            <div class="sch-card">
-              <div class="sch-card-body">
-                <div class="sch-time">19:00 · Dinner</div>
-                <div class="sch-card-title">ディナー</div>
-                <div class="sch-card-sub">夜景を見ながら、<br>特別なディナーを。</div>
-              </div>
-              <div class="sch-card-media m-dinner">🕯</div>
-            </div>
-          </div>
-
-          <div class="sch-item">
-            <div class="sch-icon">🎁</div>
-            <div class="sch-secret">
-              <div class="sch-secret-inner">
-                <div class="sch-secret-icon">✨</div>
-                <div class="sch-secret-title">Last Surprise</div>
-                <div class="sch-secret-q">？ ？ ？</div>
-                <div class="sch-secret-text">まだ秘密です♡</div>
-              </div>
-            </div>
-          </div>
+        <div class="sch-list" id="schList">
+          <!-- このリストは JS が renderSchedule() で動的に生成します。
+               編集は Admin → 📅 Schedule管理 から行ってください。 -->
         </div>
       </section>
 
       <!-- ============ Journey ============ -->
-      <section class="home-panel" data-tab="1">
-        <div class="panel-header">
-          <div class="panel-title">Journey<span class="panel-title-leaf">❦</span></div>
-          <div class="panel-sub-jp">これまでのふたりの歩み。</div>
-          <div class="panel-divider"><span>❦</span></div>
+      <!-- ============ Album ============ -->
+      <section class="home-panel album-panel" data-tab="1">
+        <div class="panel-header album-panel-header">
+          <div class="panel-title">Album<span class="panel-title-leaf">❦</span></div>
+          <div class="panel-sub-jp">ふたりの思い出帳</div>
         </div>
 
-        <div class="jrn-list">
-          <div class="jrn-item">
-            <div class="jrn-year"><span class="jrn-year-num">2024</span>Spring</div>
-            <div class="jrn-dot"></div>
-            <div class="jrn-thumb">🌸</div>
-            <div class="jrn-body">
-              <div class="jrn-title">はじめまして</div>
-              <div class="jrn-text">緊張して、何を話したかあまり覚えてない。</div>
-            </div>
-          </div>
-
-          <div class="jrn-item">
-            <div class="jrn-year"><span class="jrn-year-num">2024</span>Summer</div>
-            <div class="jrn-dot"></div>
-            <div class="jrn-thumb">☕</div>
-            <div class="jrn-body">
-              <div class="jrn-title">初デート</div>
-              <div class="jrn-text">気づいたら5時間、ずっと話してた。</div>
-            </div>
-          </div>
-
-          <div class="jrn-item">
-            <div class="jrn-year"><span class="jrn-year-num">2024</span>Autumn</div>
-            <div class="jrn-dot"></div>
-            <div class="jrn-thumb">🍁</div>
-            <div class="jrn-body">
-              <div class="jrn-title">旅行</div>
-              <div class="jrn-text">山頂で見た朝日は、一生忘れない。</div>
-            </div>
-          </div>
-
-          <div class="jrn-item">
-            <div class="jrn-year"><span class="jrn-year-num">2025</span>Daily</div>
-            <div class="jrn-dot"></div>
-            <div class="jrn-thumb">🏠</div>
-            <div class="jrn-body">
-              <div class="jrn-title">日常</div>
-              <div class="jrn-text">何気ない毎日が、何より大切。</div>
-            </div>
-          </div>
-
-          <div class="jrn-item">
-            <div class="jrn-year"><span class="jrn-year-num">2026</span>Today</div>
-            <div class="jrn-dot" style="background:#b39a6d"></div>
-            <div class="jrn-thumb" style="background:linear-gradient(135deg,#f0e2c6 0%, #c9b690 100%);">🎂</div>
-            <div class="jrn-body">
-              <div class="jrn-title">今日</div>
-              <div class="jrn-text">忘れられない一日になったね。</div>
-            </div>
-          </div>
+        <div class="alb-collage" id="albList">
+          <!-- このリストは JS の renderAlbum() で動的に生成します。
+               Memory(IndexedDB) の写真がそのまま反映されます。 -->
         </div>
       </section>
 
@@ -3938,8 +4395,8 @@
       <span class="home-tab-indicator"></span>
     </button>
     <button class="home-tab" type="button" data-tab="1" onclick="setHomeTab(1)">
-      <div class="home-tab-icon">🛤</div>
-      <div class="home-tab-label">Journey</div>
+      <div class="home-tab-icon">📔</div>
+      <div class="home-tab-label">Album</div>
       <span class="home-tab-indicator"></span>
     </button>
     <button class="home-tab" type="button" data-tab="2" onclick="setHomeTab(2)">
@@ -4102,6 +4559,22 @@
 </main>
 
 <!-- ============================================
+     Album: 写真拡大ビューア（タップで開く・スワイプで前後）
+     ============================================ -->
+<div class="alb-viewer" id="albViewer" aria-hidden="true">
+  <button class="alb-viewer-close" type="button" onclick="closeAlbumViewer()" aria-label="閉じる">✕</button>
+  <div class="alb-viewer-counter" id="albViewerCounter"></div>
+  <div class="alb-viewer-inner" id="albViewerInner">
+    <img class="alb-viewer-photo" id="albViewerPhoto" alt="memory" />
+    <div class="alb-viewer-caption">
+      <div class="alb-viewer-date"    id="albViewerDate"></div>
+      <div class="alb-viewer-title"   id="albViewerTitle"></div>
+      <div class="alb-viewer-comment" id="albViewerComment"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
      Phase 2: 簡易 Admin モード（?dev=admin）
      ============================================ -->
 <div class="admin-overlay" id="adminOverlay">
@@ -4167,6 +4640,80 @@
         BGMを設定（mp3 / m4a / aac）
       </button>
       <div class="admin-list" id="adminBgmList"></div>
+    </div>
+
+    <!-- コンテンツ管理：タイムロック -->
+    <div class="admin-section">
+      <div class="admin-section-title">
+        <span class="admin-section-icon">📅</span>コンテンツ管理：タイムロック
+      </div>
+      <div class="admin-section-sub">
+        カウントダウン解放時刻と Gift解放時刻をここから変更できます。<br>
+        保存すると即座に反映されます。彼女側 UI には一切表示されません。
+      </div>
+
+      <div class="admin-field">
+        <label class="admin-field-label" for="adminUnlockAt">🔓 アプリ解放日時</label>
+        <input type="datetime-local" class="admin-field-input" id="adminUnlockAt" />
+        <div class="admin-field-hint">
+          この時刻を過ぎると「はじめる」ボタンが表示されます。<br>
+          初期値: 2026/06/13 12:00
+        </div>
+      </div>
+
+      <div class="admin-field">
+        <label class="admin-field-label" for="adminGiftUnlockAt">🎁 Gift解放日時</label>
+        <input type="datetime-local" class="admin-field-input" id="adminGiftUnlockAt" />
+        <div class="admin-field-hint">
+          この時刻を過ぎると Gift タブのコンテンツが解放されます。<br>
+          初期値: 2026/06/13 19:00
+        </div>
+      </div>
+
+      <div class="admin-field-actions">
+        <button class="admin-add-btn" type="button" onclick="saveTimelockConfig()">保存して反映</button>
+        <button class="admin-add-btn secondary" type="button" onclick="resetTimelockConfig()">既定値に戻す</button>
+      </div>
+      <div class="admin-field-status" id="adminTimelockStatus"></div>
+    </div>
+
+    <!-- コンテンツ管理：Schedule -->
+    <div class="admin-section">
+      <div class="admin-section-title">
+        <span class="admin-section-icon">📅</span>コンテンツ管理：Schedule
+      </div>
+      <div class="admin-section-sub">
+        当日の予定変更に対応できます。<br>
+        編集・追加・削除・順番変更が可能です。彼女側 UI には一切表示されません。
+      </div>
+
+      <div class="admin-schedule-editor" id="adminScheduleEditor">
+        <!-- 各アイテムは JS で動的に生成 -->
+      </div>
+
+      <div class="admin-field-actions" style="margin-top: 8px;">
+        <button class="admin-add-btn" type="button" onclick="addScheduleItem()">＋ 予定を追加</button>
+        <button class="admin-add-btn secondary" type="button" onclick="resetScheduleDefault()">既定値に戻す</button>
+      </div>
+      <div class="admin-field-status" id="adminScheduleStatus"></div>
+    </div>
+
+    <!-- コンテンツ管理：Album -->
+    <div class="admin-section">
+      <div class="admin-section-title">
+        <span class="admin-section-icon">📔</span>コンテンツ管理：Album
+      </div>
+      <div class="admin-section-sub">
+        Memory に登録した写真がそのまま Album にも反映されます。<br>
+        写真ごとに 日付・タイトル・コメント を編集できます（彼女側 UI には一切表示されません）。<br>
+        写真の追加・削除は上の「📷 写真」セクションから。
+      </div>
+
+      <div class="admin-album-editor" id="adminAlbumEditor">
+        <!-- 各アイテムは JS で動的に生成（IndexedDB から） -->
+      </div>
+
+      <div class="admin-field-status" id="adminAlbumStatus"></div>
     </div>
 
     <!-- BGM診断パネル（開発用） -->
@@ -4414,6 +4961,587 @@
     devDebug: false
   };
 
+  // CONFIG のデフォルト値を保持（リセット用）
+  var CONFIG_DEFAULTS = {
+    unlockAt:     CONFIG.unlockAt,
+    giftUnlockAt: CONFIG.giftUnlockAt
+  };
+
+  // ============================================
+  // タイムロック設定（localStorage で上書き）
+  // ============================================
+  // Admin から日時を変更したら localStorage に保存し、
+  // 次回起動時にも CONFIG に上書きされる。
+  // 彼女側 UI には一切現れない裏側機能。
+  //
+  var TIMELOCK_STORAGE_KEY = 'timelockConfig_v1';
+
+  function loadTimelockConfig() {
+    try {
+      var raw = localStorage.getItem(TIMELOCK_STORAGE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data && typeof data === 'object') {
+        if (data.unlockAt)     CONFIG.unlockAt = data.unlockAt;
+        if (data.giftUnlockAt) CONFIG.giftUnlockAt = data.giftUnlockAt;
+        try { logger.log('[timelock] loaded:', 'unlockAt=' + CONFIG.unlockAt, 'giftUnlockAt=' + CONFIG.giftUnlockAt); } catch (e) {}
+      }
+    } catch (e) {
+      try { logger.warn('[timelock] load error:', e); } catch (_) {}
+    }
+  }
+  // 起動時に即座に読み込む（CONFIG を即上書き）
+  loadTimelockConfig();
+
+  // ============================================
+  // Schedule データ（編集可能）
+  // ============================================
+  // 各項目: { icon, time, title, desc, media, mediaClass, isSecret }
+  // - icon:    左側の小アイコン（絵文字推奨）
+  // - time:    "12:00 · Reunion" のような表示文字列
+  // - title:   見出し
+  // - desc:    説明文（改行は \n で。表示時に <br> に変換）
+  // - media:   カード右の大きい絵文字
+  // - mediaClass: 'm-air' / 'm-lunch' / 'm-green' / 'm-flower' / 'm-cafe' / 'm-dinner' のいずれか（色テーマ）
+  // - isSecret: true にすると「？？？まだ秘密です♡」のシークレットカードに切り替わる
+  //
+  var SCHEDULE_DEFAULT = [
+    { icon: '✈', time: '12:00 · Reunion',     title: '空港で再会',     desc: 'いよいよ始まり！',                     media: '🛬', mediaClass: 'm-air' },
+    { icon: '🍽', time: '13:30 · Lunch',       title: '特別なランチ',   desc: '歴史を感じる場所で、\n特別な時間を。',  media: '🥐', mediaClass: 'm-lunch' },
+    { icon: '🌿', time: '15:00 · Green Break', title: '緑のひととき',   desc: '街中の緑で、ほっと一息。',              media: '🌳', mediaClass: 'm-green' },
+    { icon: '💠', time: '16:00 · Hydrangea',   title: '紫陽花スポット', desc: '色とりどりの紫陽花に癒される。',        media: '💐', mediaClass: 'm-flower' },
+    { icon: '☕', time: '17:00 · Relax Time',  title: 'カフェタイム',   desc: 'のんびり会話を楽しもう。',              media: '🫖', mediaClass: 'm-cafe' },
+    { icon: '🍷', time: '19:00 · Dinner',      title: 'ディナー',       desc: '夜景を見ながら、\n特別なディナーを。',  media: '🕯', mediaClass: 'm-dinner' },
+    { icon: '🎁', time: 'Last Surprise',       title: '？ ？ ？',       desc: 'まだ秘密です♡',                          media: '✨', mediaClass: 'm-flower', isSecret: true }
+  ];
+  var SCHEDULE_STORAGE_KEY = 'scheduleItems_v1';
+  var scheduleItems = []; // 実際に使う配列。loadScheduleItems で初期化
+
+  function loadScheduleItems() {
+    try {
+      var raw = localStorage.getItem(SCHEDULE_STORAGE_KEY);
+      if (raw) {
+        var data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          scheduleItems = data;
+          return;
+        }
+      }
+    } catch (e) {}
+    // 保存データなし or 不正データ → デフォルトを使う（ディープコピー）
+    scheduleItems = SCHEDULE_DEFAULT.map(function(it) {
+      var copy = {};
+      for (var k in it) copy[k] = it[k];
+      return copy;
+    });
+  }
+
+  function saveScheduleItems() {
+    try {
+      localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(scheduleItems));
+      try { logger.log('[schedule] saved', scheduleItems.length, 'items'); } catch (e) {}
+      return true;
+    } catch (e) {
+      try { logger.warn('[schedule] save failed:', e); } catch (_) {}
+      return false;
+    }
+  }
+
+  function resetScheduleItems() {
+    try { localStorage.removeItem(SCHEDULE_STORAGE_KEY); } catch (e) {}
+    loadScheduleItems(); // デフォルトに戻す
+  }
+
+  /** Home のスケジュールリストを再描画 */
+  function renderSchedule() {
+    var listEl = document.getElementById('schList');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+    scheduleItems.forEach(function(item) {
+      var sch = document.createElement('div');
+      sch.className = 'sch-item';
+
+      // アイコン
+      var ico = document.createElement('div');
+      ico.className = 'sch-icon';
+      ico.textContent = item.icon || '✦';
+      sch.appendChild(ico);
+
+      if (item.isSecret) {
+        // シークレットカード
+        var secret = document.createElement('div');
+        secret.className = 'sch-secret';
+        var inner = document.createElement('div');
+        inner.className = 'sch-secret-inner';
+        inner.innerHTML =
+          '<div class="sch-secret-icon">' + escapeHtml(item.media || '✨') + '</div>' +
+          '<div class="sch-secret-title">' + escapeHtml(item.time || 'Last Surprise') + '</div>' +
+          '<div class="sch-secret-q">' + escapeHtml(item.title || '？ ？ ？') + '</div>' +
+          '<div class="sch-secret-text">' + escapeHtml(item.desc || 'まだ秘密です♡') + '</div>';
+        secret.appendChild(inner);
+        sch.appendChild(secret);
+      } else {
+        // 通常カード
+        var card = document.createElement('div');
+        card.className = 'sch-card';
+
+        var body = document.createElement('div');
+        body.className = 'sch-card-body';
+        body.innerHTML =
+          '<div class="sch-time">' + escapeHtml(item.time || '') + '</div>' +
+          '<div class="sch-card-title">' + escapeHtml(item.title || '') + '</div>' +
+          '<div class="sch-card-sub">' + escapeHtml(item.desc || '').replace(/\n/g, '<br>') + '</div>';
+        card.appendChild(body);
+
+        var media = document.createElement('div');
+        media.className = 'sch-card-media ' + (item.mediaClass || 'm-air');
+        media.textContent = item.media || '✦';
+        card.appendChild(media);
+
+        sch.appendChild(card);
+      }
+
+      listEl.appendChild(sch);
+    });
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // 起動時にロード（Home 表示前に呼ばれる必要があるので冒頭で実行）
+  loadScheduleItems();
+
+  // ============================================
+  // Album データ（編集可能・思い出帳）
+  // ============================================
+  // 各項目は IndexedDB の photos ストアから取得する。
+  // Memory PV と Album で同じ写真データを共有する設計。
+  //
+  // 各 IDB レコードに以下のフィールドを使う：
+  //   - id:          IDB主キー（自動採番）
+  //   - dataUrl:     画像 DataURL（必須）
+  //   - albumDate:   "2026.06.13" のような表示用日付（省略可）
+  //   - albumTitle:  "Happy Birthday" タイトル（省略可）
+  //   - albumComment:短い一言（省略可）
+  //   - addedAt:     アップロード時刻（並び順に使用、新しい順）
+  //   - name / size / type: 既存フィールド（互換）
+  //
+  // Admin の「📷 写真」セクションで写真を追加すると、自動で Album にも反映される。
+  // 写真ごとの 日付 / タイトル / コメント は Admin 写真リストから編集可能。
+
+  // IntersectionObserver（スクロール時 fade-in）
+  var _albumObserver = null;
+  function ensureAlbumObserver() {
+    if (_albumObserver || !window.IntersectionObserver) return;
+    _albumObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+        }
+      });
+    }, { threshold: 0.05, rootMargin: '0px 0px -5% 0px' });
+  }
+
+  // Album 拡大ビューア用の写真リスト（renderAlbum 時に更新）
+  var _albumViewerPhotos = [];
+  var _albumViewerIdx = 0;
+  // モーダル表示前の Album パネルスクロール位置を退避
+  var _albumScrollY = 0;
+
+  /** シードベースの疑似乱数（同じID→同じ値、リロードしても配置不変） */
+  function albumPseudoRand(seed) {
+    var x = Math.sin(seed * 9301 + 49297) * 233280;
+    return x - Math.floor(x);
+  }
+
+  /** Album パネルを再描画（IndexedDB の photos を参照、新しい順）
+   *  絶対配置で「机に散らばった写真」を演出。
+   *  画像の縦横比を保ったまま、左右・上下に重なるよう自前で配置を計算する。
+   */
+  function renderAlbum() {
+    var listEl = document.getElementById('albList');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    listEl.style.removeProperty('--alb-height');
+
+    var dbPromise;
+    try { dbPromise = adminDBGetAll('photos'); }
+    catch (e) { dbPromise = Promise.resolve([]); }
+
+    dbPromise.then(function(photos) {
+      photos = (photos || []).filter(function(p) { return p && p.dataUrl; });
+
+      if (photos.length === 0) {
+        renderAlbumEmpty(listEl);
+        _albumViewerPhotos = [];
+        return;
+      }
+
+      // 並び順：新しい順（addedAt 降順）→ 下にスクロールするほど過去へ遡る
+      photos.sort(function(a, b) {
+        return (b.addedAt || 0) - (a.addedAt || 0);
+      });
+      _albumViewerPhotos = photos.slice();
+      ensureAlbumObserver();
+
+      // コンテナの幅
+      var containerW = listEl.clientWidth || window.innerWidth || 360;
+      var usableW = Math.max(280, containerW - 4);
+
+      // アスペクト比キャッシュ（image onload で確定後再レイアウト）
+      var aspectRatios = new Array(photos.length);
+      var loadedCount = 0;
+      var hasRelayout = false;
+
+      function buildLayout() {
+        // 各カードの幅をシードベースでランダムに決める
+        var minW = Math.max(86, Math.floor(usableW * 0.27));
+        var maxW = Math.min(168, Math.floor(usableW * 0.48));
+
+        // すべてのカードのサイズを計算
+        var cards = photos.map(function(item, idx) {
+          var seed = (item.id != null ? item.id : (idx + 1)) * 7 + 13;
+          var r1 = albumPseudoRand(seed);
+          var r2 = albumPseudoRand(seed + 11);
+          var w = Math.round(minW + r1 * (maxW - minW));
+          var ar = aspectRatios[idx] || (4/3); // 横長デフォルト
+          var photoH = Math.round(w * ar);
+          // カードの高さ = padding上(4) + 写真 + キャプション領域(可変) + padding下(22)
+          var hasText = !!(item.albumDate || item.albumTitle || item.albumComment);
+          var captionH = hasText ? 32 : 4;
+          var cardH = 4 + photoH + 4 + captionH + 22;
+          return {
+            item: item, idx: idx, seed: seed,
+            w: w, h: cardH, r1: r1, r2: r2,
+            _x: 0, _y: 0
+          };
+        });
+
+        // 行ベースのスキャタ配置：合計幅が usableW + 30px を超えたら次の行へ。
+        // 各行は左から並べ、合計幅がコンテナ幅を超える場合は重ねる。
+        var rows = [];
+        var currentRow = [];
+        var currentRowW = 0;
+        for (var i = 0; i < cards.length; i++) {
+          var c = cards[i];
+          // 1行に最大3枚、または合計幅が usableW * 1.15 を超えたら次行
+          if (currentRow.length >= 3 || (currentRow.length > 0 && currentRowW + c.w > usableW * 1.15)) {
+            rows.push(currentRow);
+            currentRow = [];
+            currentRowW = 0;
+          }
+          currentRow.push(c);
+          currentRowW += c.w;
+        }
+        if (currentRow.length > 0) rows.push(currentRow);
+
+        // 各行を配置：行内のカードを「重ねながら」並べる
+        var cursorY = 4;
+        var maxBottom = cursorY;
+        for (var rowI = 0; rowI < rows.length; rowI++) {
+          var row = rows[rowI];
+          var totalW = row.reduce(function(s, it) { return s + it.w; }, 0);
+          var overflow = totalW - usableW;
+
+          if (overflow > -20) {
+            // 重ねる：右に進むほど少しずつ重ねる
+            var overlap = Math.max(8, (overflow + 16) / Math.max(1, row.length - 1));
+            var x = -10 + albumPseudoRand(rowI * 13 + 3) * 12; // 左端を少しランダム
+            for (var j = 0; j < row.length; j++) {
+              var it = row[j];
+              var jitterX = (it.r2 - 0.5) * 18;
+              it._x = Math.round(x + jitterX);
+              x += it.w - overlap;
+            }
+          } else {
+            // 均等配置 + ランダム揺らぎ
+            var gap = (usableW - totalW) / (row.length + 1);
+            var x2 = gap;
+            for (var j2 = 0; j2 < row.length; j2++) {
+              var it2 = row[j2];
+              var jitterX2 = (it2.r2 - 0.5) * 22;
+              it2._x = Math.round(x2 + jitterX2);
+              x2 += it2.w + gap;
+            }
+          }
+          // y位置：行ベース + ランダム揺らぎ
+          var avgH = row.reduce(function(s, it) { return s + it.h; }, 0) / row.length;
+          for (var k = 0; k < row.length; k++) {
+            var it3 = row[k];
+            var jitterY = (albumPseudoRand(it3.seed + 71) - 0.5) * 32;
+            it3._y = Math.round(cursorY + jitterY);
+            // 境界補正
+            if (it3._x < -14) it3._x = -14;
+            if (it3._x + it3.w > usableW + 14) it3._x = Math.round(usableW + 14 - it3.w);
+            var b = it3._y + it3.h;
+            if (b > maxBottom) maxBottom = b;
+          }
+          // 行間：写真の自然な重なりを作るため平均高さの 0.55〜0.80
+          var gapFactor = 0.55 + albumPseudoRand(rowI * 31 + 7) * 0.25;
+          cursorY += Math.round(avgH * gapFactor);
+        }
+
+        // コンテナ高さ
+        var totalH = maxBottom + 80;
+        listEl.style.setProperty('--alb-height', totalH + 'px');
+
+        // 既存カードを削除して描画
+        listEl.innerHTML = '';
+
+        cards.forEach(function(c) {
+          var item = c.item;
+          var card = document.createElement('div');
+          card.className = 'alb-card';
+          card.dataset.idx = String(c.idx);
+          card.style.left  = c._x + 'px';
+          card.style.top   = c._y + 'px';
+          card.style.width = c.w + 'px';
+
+          // 回転 ±12°
+          var r3 = albumPseudoRand(c.seed + 23);
+          var rot = (r3 - 0.5) * 24; // -12..+12
+          card.style.setProperty('--alb-rot', rot.toFixed(2) + 'deg');
+
+          // z-index：シードでランダム
+          var zRand = Math.floor(albumPseudoRand(c.seed + 47) * 50);
+          card.style.zIndex = String(10 + zRand);
+
+          // マスキングテープ
+          var r4 = albumPseudoRand(c.seed + 53);
+          var r5 = albumPseudoRand(c.seed + 67);
+          var tape = document.createElement('div');
+          var tapeType = Math.floor(r4 * 4) + 1;
+          tape.className = 'alb-tape tape-' + tapeType;
+          tape.style.left = (15 + r5 * 55).toFixed(1) + '%';
+          tape.style.transform = 'rotate(' + ((c.r1 + r5 - 1) * 16).toFixed(1) + 'deg)';
+          card.appendChild(tape);
+
+          // ペーパークリップ（約22%）
+          if (r4 < 0.22) {
+            var clip = document.createElement('div');
+            clip.className = 'alb-clip';
+            clip.style.right = (4 + r5 * 8).toFixed(0) + 'px';
+            clip.style.transform = 'rotate(' + ((r3 - 0.5) * 30).toFixed(1) + 'deg)';
+            card.appendChild(clip);
+          }
+
+          // 押し花（約9%）
+          if (r5 > 0.91) {
+            var flower = document.createElement('div');
+            flower.className = 'alb-flower';
+            flower.textContent = (r4 < 0.5) ? '✿' : '❀';
+            if (r3 < 0.5) flower.style.left = '-6px';
+            else          flower.style.right = '-6px';
+            card.appendChild(flower);
+          }
+
+          // 写真エリア
+          var photoBox = document.createElement('div');
+          photoBox.className = 'alb-photo';
+          var img = document.createElement('img');
+          img.alt = item.albumTitle || item.name || 'memory';
+          img.loading = 'lazy';
+          // 画像読み込み完了でアスペクト比を更新 → 一定枚数 or 全枚数読めたら再レイアウト
+          img.onload = function() {
+            try {
+              if (img.naturalWidth && img.naturalHeight) {
+                var ar = img.naturalHeight / img.naturalWidth;
+                if (aspectRatios[c.idx] !== ar) {
+                  aspectRatios[c.idx] = ar;
+                  loadedCount++;
+                  var threshold = Math.max(3, Math.floor(photos.length * 0.6));
+                  if (!hasRelayout && (loadedCount >= threshold || loadedCount === photos.length)) {
+                    hasRelayout = true;
+                    buildLayout();
+                  }
+                }
+              }
+            } catch (e) {}
+          };
+          img.src = item.dataUrl;
+          photoBox.appendChild(img);
+          card.appendChild(photoBox);
+
+          // キャプション
+          var capWrap = document.createElement('div');
+          capWrap.className = 'alb-caption';
+          capWrap.innerHTML =
+            '<div class="alb-date">'    + escapeHtml(item.albumDate    || '') + '</div>' +
+            '<div class="alb-title">'   + escapeHtml(item.albumTitle   || '') + '</div>' +
+            '<div class="alb-comment">' + escapeHtml(item.albumComment || '').replace(/\n/g, '<br>') + '</div>';
+          card.appendChild(capWrap);
+
+          // タップで拡大
+          card.addEventListener('click', function() {
+            openAlbumViewer(parseInt(card.dataset.idx, 10));
+          });
+
+          listEl.appendChild(card);
+
+          if (_albumObserver) _albumObserver.observe(card);
+          else                card.classList.add('in-view');
+        });
+      }
+
+      buildLayout();
+    }).catch(function(err) {
+      try { logger.warn('[album] render failed:', err); } catch (e) {}
+      renderAlbumEmpty(listEl);
+    });
+  }
+
+  function renderAlbumEmpty(listEl) {
+    var empty = document.createElement('div');
+    empty.className = 'alb-empty';
+    empty.innerHTML =
+      '<div class="alb-empty-icon">📔</div>' +
+      'まだ思い出の写真がありません。' +
+      '<div class="alb-empty-sub">これからの日々が、ここに積まれていく。</div>';
+    listEl.appendChild(empty);
+  }
+
+  // ============================================
+  // Album: 拡大ビューア（モーダル表示中は背景完全固定）
+  // ============================================
+  function openAlbumViewer(idx) {
+    if (!_albumViewerPhotos || _albumViewerPhotos.length === 0) return;
+    if (idx < 0) idx = 0;
+    if (idx >= _albumViewerPhotos.length) idx = _albumViewerPhotos.length - 1;
+    _albumViewerIdx = idx;
+    updateAlbumViewer();
+
+    var v = document.getElementById('albViewer');
+    if (v) v.classList.add('active');
+
+    // 背景の Album パネルをスクロール固定
+    lockAlbumPanelScroll();
+  }
+
+  function closeAlbumViewer() {
+    var v = document.getElementById('albViewer');
+    if (v) v.classList.remove('active');
+    unlockAlbumPanelScroll();
+  }
+
+  function lockAlbumPanelScroll() {
+    // Album パネル（home-panel.album-panel）のスクロール位置を保存して固定
+    var panels = document.querySelectorAll('.home-panel.album-panel');
+    panels.forEach(function(p) {
+      _albumScrollY = p.scrollTop;
+      p.dataset.lockedScroll = String(_albumScrollY);
+      p.style.overflow = 'hidden';
+    });
+    // body 側も念のため固定
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+  }
+  function unlockAlbumPanelScroll() {
+    var panels = document.querySelectorAll('.home-panel.album-panel');
+    panels.forEach(function(p) {
+      p.style.overflow = '';
+      var sy = parseInt(p.dataset.lockedScroll || '0', 10);
+      if (!isNaN(sy)) p.scrollTop = sy;
+    });
+    document.body.style.overflow = '';
+    document.body.style.touchAction = '';
+  }
+
+  function updateAlbumViewer() {
+    var item = _albumViewerPhotos[_albumViewerIdx];
+    if (!item) return;
+    var img = document.getElementById('albViewerPhoto');
+    var d = document.getElementById('albViewerDate');
+    var t = document.getElementById('albViewerTitle');
+    var c = document.getElementById('albViewerComment');
+    var counter = document.getElementById('albViewerCounter');
+    if (img) img.src = item.dataUrl;
+    if (d) d.textContent = item.albumDate || '';
+    if (t) t.textContent = item.albumTitle || '';
+    if (c) c.innerHTML = escapeHtml(item.albumComment || '').replace(/\n/g, '<br>');
+    if (counter) counter.textContent = (_albumViewerIdx + 1) + ' / ' + _albumViewerPhotos.length;
+  }
+
+  function albumViewerNext() {
+    if (_albumViewerIdx < _albumViewerPhotos.length - 1) {
+      _albumViewerIdx++;
+      updateAlbumViewer();
+    }
+  }
+  function albumViewerPrev() {
+    if (_albumViewerIdx > 0) {
+      _albumViewerIdx--;
+      updateAlbumViewer();
+    }
+  }
+
+  // モーダル内のスワイプ：写真切り替え専用、背景は完全に動かさない
+  (function setupAlbumViewerSwipe() {
+    var startX = 0, startY = 0, dragging = false, decided = false, isHoriz = false;
+
+    function attach() {
+      var v = document.getElementById('albViewer');
+      if (!v) return;
+
+      v.addEventListener('touchstart', function(e) {
+        if (!v.classList.contains('active')) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        dragging = true;
+        decided = false;
+        isHoriz = false;
+      }, { passive: true });
+
+      v.addEventListener('touchmove', function(e) {
+        if (!dragging) return;
+        var dx = e.touches[0].clientX - startX;
+        var dy = e.touches[0].clientY - startY;
+        if (!decided && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+          decided = true;
+          isHoriz = Math.abs(dx) > Math.abs(dy);
+        }
+        if (decided && isHoriz) {
+          // 横方向：背景に伝播しないようにキャンセル
+          e.preventDefault();
+          e.stopPropagation();
+        } else if (decided && !isHoriz) {
+          // 縦方向：モーダル閉じる動作は無し、背景にも伝えない
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, { passive: false });
+
+      v.addEventListener('touchend', function(e) {
+        if (!dragging) return;
+        dragging = false;
+        if (!isHoriz) return;
+        var dx = e.changedTouches[0].clientX - startX;
+        if (dx < -50) albumViewerNext();
+        else if (dx > 50) albumViewerPrev();
+      });
+
+      // 背景タップで閉じる（写真エリア外のみ）
+      v.addEventListener('click', function(e) {
+        if (e.target === v) closeAlbumViewer();
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', attach);
+    } else {
+      attach();
+    }
+  })();
+
+
+
   // ============================================
   // 静かなロガー
   // ============================================
@@ -4472,6 +5600,59 @@
       };
       area.appendChild(btn);
     }
+
+    // 「ホームへスキップ」ボタンの表示制御（解放後のみ表示）
+    updateSkipButtonVisibility(t.isUnlocked);
+  }
+
+  // ============================================
+  // 「ホームへスキップ」機能
+  // ============================================
+  // 初回ユーザー：通常通り Countdown → Welcome → Questions → Memory → Home
+  // 2回目以降（Memory 完了済み）：右上のスキップボタンで Home に直接ジャンプ可能
+  //
+  // 表示条件：
+  //   - 解放後（compute().isUnlocked === true）のみ表示
+  //   - 解放前は完全に非表示
+  //
+  // localStorage:
+  //   - 'memoryCompleted' = 'true' → 過去に Memory を完了済み（少し目立つスタイル）
+  //
+  var MEMORY_COMPLETED_KEY = 'memoryCompleted_v1';
+
+  function isMemoryCompleted() {
+    try {
+      return localStorage.getItem(MEMORY_COMPLETED_KEY) === 'true';
+    } catch (e) { return false; }
+  }
+
+  function markMemoryCompleted() {
+    try {
+      localStorage.setItem(MEMORY_COMPLETED_KEY, 'true');
+      try { logger.log('Memory completed - skip button will be highlighted next time'); } catch (e) {}
+    } catch (e) {}
+  }
+
+  function updateSkipButtonVisibility(isUnlocked) {
+    var btn = document.getElementById('skipHomeBtn');
+    if (!btn) return;
+    if (isUnlocked) {
+      btn.classList.add('visible');
+      // 一度 Memory を完了したユーザーには少し目立たせる
+      if (isMemoryCompleted()) {
+        btn.classList.add('completed');
+      } else {
+        btn.classList.remove('completed');
+      }
+    } else {
+      btn.classList.remove('visible');
+    }
+  }
+
+  // スキップ：Countdown → Home に直接ジャンプ
+  function skipToHome() {
+    try { logger.log('[skipToHome] スキップ実行（' + (isMemoryCompleted() ? '完了済み' : '初回スキップ') + '）'); } catch (e) {}
+    showScreen('screen-home');
   }
 
   // ============================================
@@ -6891,6 +8072,8 @@
     if (pvAudio) pvAudio.pause();
     var pvScreen = document.getElementById('screen-pv');
     if (pvScreen) pvScreen.classList.remove('finale-mode');
+    // Memory を完了したことを記録（次回スキップボタンを目立たせるため）
+    try { markMemoryCompleted(); } catch (e) {}
     showScreen('screen-home');
   }
 
@@ -6918,6 +8101,10 @@
     panels.forEach(function(p, i) {
       if (i === idx) p.scrollTop = 0;
     });
+    // Album タブ(idx=1)を開いた時は IndexedDB から最新を取り直す
+    if (idx === 1) {
+      try { renderAlbum(); } catch (e) {}
+    }
   }
 
   // 横スワイプでタブ切り替え
@@ -6929,6 +8116,9 @@
     function getActiveHomeTrack() {
       var home = document.getElementById('screen-home');
       if (!home || !home.classList.contains('active')) return null;
+      // Album ビューア展開中はスワイプ無効（タブ切替を起こさない）
+      var albV = document.getElementById('albViewer');
+      if (albV && albV.classList.contains('active')) return null;
       return document.getElementById('homeTrack');
     }
 
@@ -7673,6 +8863,15 @@
     loadAdminSettings().then(refreshAdminUI);
     try { updateBgmFabVisibility(); } catch (e) {}
 
+    // タイムロック編集フィールドに現在値を流し込む
+    try { syncTimelockFields(); } catch (e) {}
+
+    // Schedule エディタを描画
+    try { renderScheduleEditor(); } catch (e) {}
+
+    // Album エディタを描画
+    try { renderAlbumEditor(); } catch (e) {}
+
     // 診断パネル用のイベントリスナーをバインド（一度だけ）
     try { bindBgmDiagEventListeners(); } catch (e) {}
 
@@ -7685,6 +8884,423 @@
       try { refreshSafariCompatPanel(); } catch (e) {}
     });
   }
+
+  // ============================================
+  // タイムロック編集 UI ハンドラ
+  // ============================================
+  // ISO 8601 (+09:00) ↔ datetime-local input ('YYYY-MM-DDTHH:MM') 変換
+
+  function isoToLocalInput(iso) {
+    // 例: '2026-06-13T12:00:00+09:00' → '2026-06-13T12:00'
+    if (!iso) return '';
+    var m = iso.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+    return m ? (m[1] + 'T' + m[2]) : '';
+  }
+
+  function localInputToIso(local) {
+    // 例: '2026-06-13T12:00' → '2026-06-13T12:00:00+09:00'
+    if (!local) return null;
+    var m = local.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/);
+    if (!m) return null;
+    return m[1] + 'T' + m[2] + ':00+09:00';
+  }
+
+  function syncTimelockFields() {
+    var u = document.getElementById('adminUnlockAt');
+    var g = document.getElementById('adminGiftUnlockAt');
+    if (u) u.value = isoToLocalInput(CONFIG.unlockAt);
+    if (g) g.value = isoToLocalInput(CONFIG.giftUnlockAt);
+    var s = document.getElementById('adminTimelockStatus');
+    if (s) { s.textContent = ''; s.classList.remove('err'); }
+  }
+
+  function setTimelockStatus(msg, isError) {
+    var s = document.getElementById('adminTimelockStatus');
+    if (!s) return;
+    s.textContent = msg;
+    if (isError) s.classList.add('err');
+    else s.classList.remove('err');
+    // 3秒後にメッセージを消す（成功時のみ）
+    if (!isError) {
+      setTimeout(function() {
+        if (s.textContent === msg) s.textContent = '';
+      }, 3000);
+    }
+  }
+
+  function saveTimelockConfig() {
+    var u = document.getElementById('adminUnlockAt');
+    var g = document.getElementById('adminGiftUnlockAt');
+    if (!u || !g) return;
+
+    var unlockIso = localInputToIso(u.value);
+    var giftIso   = localInputToIso(g.value);
+
+    if (!unlockIso || !giftIso) {
+      setTimelockStatus('⚠ 日時の形式が正しくありません', true);
+      return;
+    }
+
+    // 妥当性チェック：Gift解放はアプリ解放と同じか後
+    if (new Date(giftIso).getTime() < new Date(unlockIso).getTime()) {
+      setTimelockStatus('⚠ Gift解放はアプリ解放より後の時刻にしてください', true);
+      return;
+    }
+
+    try {
+      var data = { unlockAt: unlockIso, giftUnlockAt: giftIso };
+      localStorage.setItem(TIMELOCK_STORAGE_KEY, JSON.stringify(data));
+      CONFIG.unlockAt = unlockIso;
+      CONFIG.giftUnlockAt = giftIso;
+      try { logger.log('[timelock] saved:', data); } catch (e) {}
+
+      // 即座に UI に反映
+      try { renderLock(); } catch (e) {}
+      try { refreshGiftView(); } catch (e) {}
+
+      setTimelockStatus('✓ 保存しました（即反映）', false);
+    } catch (e) {
+      setTimelockStatus('⚠ 保存に失敗しました: ' + e.message, true);
+    }
+  }
+
+  function resetTimelockConfig() {
+    if (!confirm('タイムロック設定を既定値に戻しますか？\n\n' +
+                 'アプリ解放: 2026/06/13 12:00\n' +
+                 'Gift解放:  2026/06/13 19:00')) return;
+    try {
+      localStorage.removeItem(TIMELOCK_STORAGE_KEY);
+      CONFIG.unlockAt = CONFIG_DEFAULTS.unlockAt;
+      CONFIG.giftUnlockAt = CONFIG_DEFAULTS.giftUnlockAt;
+      syncTimelockFields();
+      try { renderLock(); } catch (e) {}
+      try { refreshGiftView(); } catch (e) {}
+      setTimelockStatus('✓ 既定値に戻しました', false);
+    } catch (e) {
+      setTimelockStatus('⚠ リセット失敗: ' + e.message, true);
+    }
+  }
+
+  // ============================================
+  // Schedule管理（Admin専用）
+  // ============================================
+  // 使えるメディアテーマクラス
+  var SCHEDULE_MEDIA_CLASSES = ['m-air', 'm-lunch', 'm-green', 'm-flower', 'm-cafe', 'm-dinner'];
+
+  function setScheduleStatus(msg, isError) {
+    var s = document.getElementById('adminScheduleStatus');
+    if (!s) return;
+    s.textContent = msg;
+    if (isError) s.classList.add('err');
+    else s.classList.remove('err');
+    if (!isError && msg) {
+      setTimeout(function() {
+        if (s.textContent === msg) s.textContent = '';
+      }, 3000);
+    }
+  }
+
+  /** Admin の Schedule エディタを描画 */
+  function renderScheduleEditor() {
+    var ed = document.getElementById('adminScheduleEditor');
+    if (!ed) return;
+    ed.innerHTML = '';
+
+    scheduleItems.forEach(function(item, idx) {
+      var row = document.createElement('div');
+      row.className = 'admin-sch-row' + (item.isSecret ? ' secret-row' : '');
+      row.dataset.idx = String(idx);
+
+      // ヘッダー：番号 + アクションボタン
+      var header = document.createElement('div');
+      header.className = 'admin-sch-row-header';
+      header.innerHTML =
+        '<span class="admin-sch-row-num">#' + (idx + 1) + '</span>' +
+        '<div class="admin-sch-row-actions">' +
+          '<button class="admin-sch-action-btn" type="button" data-action="up"   ' + (idx === 0                       ? 'disabled' : '') + ' title="上へ">↑</button>' +
+          '<button class="admin-sch-action-btn" type="button" data-action="down" ' + (idx === scheduleItems.length - 1 ? 'disabled' : '') + ' title="下へ">↓</button>' +
+          '<button class="admin-sch-action-btn delete" type="button" data-action="delete" title="削除">✕</button>' +
+        '</div>';
+      row.appendChild(header);
+
+      // 入力欄
+      var grid = document.createElement('div');
+      grid.className = 'admin-sch-grid';
+      grid.innerHTML =
+        '<div class="admin-sch-field">' +
+          '<div class="admin-sch-label">アイコン</div>' +
+          '<input class="admin-sch-input" type="text" data-field="icon" value="' + escapeAttr(item.icon || '') + '" placeholder="✈" maxlength="4" />' +
+        '</div>' +
+        '<div class="admin-sch-field">' +
+          '<div class="admin-sch-label">時刻・タグ</div>' +
+          '<input class="admin-sch-input" type="text" data-field="time" value="' + escapeAttr(item.time || '') + '" placeholder="12:00 · Reunion" />' +
+        '</div>';
+      row.appendChild(grid);
+
+      // タイトル
+      var titleField = document.createElement('div');
+      titleField.className = 'admin-sch-field';
+      titleField.style.marginBottom = '6px';
+      titleField.innerHTML =
+        '<div class="admin-sch-label">タイトル</div>' +
+        '<input class="admin-sch-input" type="text" data-field="title" value="' + escapeAttr(item.title || '') + '" placeholder="空港で再会" />';
+      row.appendChild(titleField);
+
+      // 説明
+      var descField = document.createElement('div');
+      descField.className = 'admin-sch-field';
+      descField.style.marginBottom = '6px';
+      descField.innerHTML =
+        '<div class="admin-sch-label">説明（改行可）</div>' +
+        '<textarea class="admin-sch-textarea" data-field="desc" rows="2" placeholder="いよいよ始まり！">' + escapeHtml(item.desc || '') + '</textarea>';
+      row.appendChild(descField);
+
+      // メディア + テーマ
+      var mediaGrid = document.createElement('div');
+      mediaGrid.className = 'admin-sch-grid';
+      var themeOpts = SCHEDULE_MEDIA_CLASSES.map(function(c) {
+        var sel = (item.mediaClass === c) ? ' selected' : '';
+        var label = {
+          'm-air':    'air（空・水色）',
+          'm-lunch':  'lunch（パン・茶）',
+          'm-green':  'green（緑）',
+          'm-flower': 'flower（紫）',
+          'm-cafe':   'cafe（カフェ）',
+          'm-dinner': 'dinner（夜）'
+        }[c];
+        return '<option value="' + c + '"' + sel + '>' + label + '</option>';
+      }).join('');
+      mediaGrid.innerHTML =
+        '<div class="admin-sch-field">' +
+          '<div class="admin-sch-label">大絵文字</div>' +
+          '<input class="admin-sch-input" type="text" data-field="media" value="' + escapeAttr(item.media || '') + '" placeholder="🛬" maxlength="4" />' +
+        '</div>' +
+        '<div class="admin-sch-field">' +
+          '<div class="admin-sch-label">テーマ色</div>' +
+          '<select class="admin-sch-input" data-field="mediaClass">' + themeOpts + '</select>' +
+        '</div>';
+      row.appendChild(mediaGrid);
+
+      // シークレットトグル
+      var toggleLabel = document.createElement('label');
+      toggleLabel.className = 'admin-sch-secret-toggle';
+      toggleLabel.innerHTML =
+        '<input type="checkbox" data-field="isSecret"' + (item.isSecret ? ' checked' : '') + ' />' +
+        '<span>シークレットカード（？？？まだ秘密です♡ 表示）として表示</span>';
+      row.appendChild(toggleLabel);
+
+      ed.appendChild(row);
+
+      // イベントバインド
+      row.querySelectorAll('[data-field]').forEach(function(input) {
+        var fieldName = input.dataset.field;
+        var evt = (input.type === 'checkbox' || input.tagName === 'SELECT') ? 'change' : 'input';
+        input.addEventListener(evt, function() {
+          var val = (input.type === 'checkbox') ? input.checked : input.value;
+          scheduleItems[idx][fieldName] = val;
+          // 入力ごとに即保存 + 即反映
+          saveScheduleItems();
+          renderSchedule();
+          // シークレット切り替え時は背景色を更新するため再描画
+          if (fieldName === 'isSecret') {
+            renderScheduleEditor();
+          }
+          setScheduleStatus('✓ 自動保存', false);
+        });
+      });
+
+      row.querySelectorAll('[data-action]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var action = btn.dataset.action;
+          var i = parseInt(row.dataset.idx, 10);
+          if (action === 'up' && i > 0) {
+            var tmp = scheduleItems[i - 1];
+            scheduleItems[i - 1] = scheduleItems[i];
+            scheduleItems[i] = tmp;
+          } else if (action === 'down' && i < scheduleItems.length - 1) {
+            var tmp2 = scheduleItems[i + 1];
+            scheduleItems[i + 1] = scheduleItems[i];
+            scheduleItems[i] = tmp2;
+          } else if (action === 'delete') {
+            if (!confirm('「' + (scheduleItems[i].title || scheduleItems[i].time || '#' + (i + 1)) + '」を削除しますか？')) return;
+            scheduleItems.splice(i, 1);
+          } else {
+            return;
+          }
+          saveScheduleItems();
+          renderSchedule();
+          renderScheduleEditor();
+          setScheduleStatus('✓ 反映しました', false);
+        });
+      });
+    });
+
+    // 空のとき
+    if (scheduleItems.length === 0) {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'padding: 16px; text-align: center; color: #8b8275; font-size: 11.5px;';
+      empty.textContent = '予定が空です。「＋ 予定を追加」から作成してください。';
+      ed.appendChild(empty);
+    }
+  }
+
+  /** 新しいスケジュール項目を追加 */
+  function addScheduleItem() {
+    scheduleItems.push({
+      icon: '✦',
+      time: '00:00 · New',
+      title: '新しい予定',
+      desc: '説明をここに',
+      media: '✨',
+      mediaClass: 'm-air',
+      isSecret: false
+    });
+    saveScheduleItems();
+    renderSchedule();
+    renderScheduleEditor();
+    setScheduleStatus('✓ 追加しました', false);
+    // 追加した行までスクロール
+    setTimeout(function() {
+      var rows = document.querySelectorAll('.admin-sch-row');
+      if (rows.length) rows[rows.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+  }
+
+  /** デフォルトに戻す */
+  function resetScheduleDefault() {
+    if (!confirm('スケジュールを既定値（7項目）に戻しますか？\n\n編集内容はすべて失われます。')) return;
+    resetScheduleItems();
+    renderSchedule();
+    renderScheduleEditor();
+    setScheduleStatus('✓ 既定値に戻しました', false);
+  }
+
+  /** HTML 属性値用エスケープ */
+  function escapeAttr(s) {
+    return escapeHtml(s);
+  }
+
+  // ============================================
+  // Album管理（Admin専用）
+  // ============================================
+  // Memory(IndexedDB photos) の各写真に albumDate / albumTitle / albumComment
+  // を編集可能にする。写真の追加・削除は「📷 写真」セクションで行う。
+  //
+  function setAlbumStatus(msg, isError) {
+    var s = document.getElementById('adminAlbumStatus');
+    if (!s) return;
+    s.textContent = msg;
+    if (isError) s.classList.add('err');
+    else s.classList.remove('err');
+    if (!isError && msg) {
+      setTimeout(function() {
+        if (s.textContent === msg) s.textContent = '';
+      }, 2500);
+    }
+  }
+
+  /** Admin の Album エディタを描画（IndexedDB から取得） */
+  function renderAlbumEditor() {
+    var ed = document.getElementById('adminAlbumEditor');
+    if (!ed) return;
+    ed.innerHTML = '<div style="padding:10px; text-align:center; color:#8b8275; font-size:11.5px;">読み込み中...</div>';
+
+    adminDBGetAll('photos').then(function(photos) {
+      ed.innerHTML = '';
+      photos = (photos || []).filter(function(p) { return p && p.dataUrl; });
+
+      if (photos.length === 0) {
+        var empty = document.createElement('div');
+        empty.style.cssText = 'padding: 16px; text-align: center; color: #8b8275; font-size: 11.5px; line-height: 1.7;';
+        empty.innerHTML = '写真がまだ登録されていません。<br>上の「📷 写真」セクションから写真を追加してください。';
+        ed.appendChild(empty);
+        return;
+      }
+
+      // Album表示と同じ順序（新しい順）でエディタも描画
+      photos.sort(function(a, b) {
+        return (b.addedAt || 0) - (a.addedAt || 0);
+      });
+
+      photos.forEach(function(item, idx) {
+        var row = document.createElement('div');
+        row.className = 'admin-alb-row';
+        row.dataset.photoId = String(item.id);
+
+        // ヘッダー：番号 + ファイル名
+        var header = document.createElement('div');
+        header.className = 'admin-alb-row-header';
+        header.innerHTML =
+          '<span class="admin-alb-row-num">#' + (idx + 1) + '</span>' +
+          '<span style="font-size:10.5px; color:#8b8275; flex:1; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-left:8px;">' +
+          escapeHtml(item.name || '') + '</span>';
+        row.appendChild(header);
+
+        // グリッド：サムネ + フィールド
+        var grid = document.createElement('div');
+        grid.className = 'admin-alb-grid';
+
+        var thumb = document.createElement('div');
+        thumb.className = 'admin-alb-thumb';
+        var thImg = document.createElement('img');
+        thImg.src = item.dataUrl;
+        thumb.appendChild(thImg);
+
+        var fields = document.createElement('div');
+        fields.className = 'admin-alb-fields';
+        fields.innerHTML =
+          '<div class="admin-alb-field">' +
+            '<div class="admin-alb-label">日付</div>' +
+            '<input class="admin-alb-input" type="text" data-field="albumDate" value="' + escapeAttr(item.albumDate || '') + '" placeholder="2026.06.13" />' +
+          '</div>' +
+          '<div class="admin-alb-field">' +
+            '<div class="admin-alb-label">タイトル</div>' +
+            '<input class="admin-alb-input" type="text" data-field="albumTitle" value="' + escapeAttr(item.albumTitle || '') + '" placeholder="Happy Birthday" />' +
+          '</div>';
+
+        grid.appendChild(thumb);
+        grid.appendChild(fields);
+        row.appendChild(grid);
+
+        // コメント
+        var commentField = document.createElement('div');
+        commentField.className = 'admin-alb-field';
+        commentField.style.marginBottom = '0';
+        commentField.innerHTML =
+          '<div class="admin-alb-label">コメント（改行可）</div>' +
+          '<textarea class="admin-alb-textarea" data-field="albumComment" rows="2" placeholder="最高の一日になりますように">' + escapeHtml(item.albumComment || '') + '</textarea>';
+        row.appendChild(commentField);
+
+        ed.appendChild(row);
+
+        // 入力ハンドラ：debounce で 500ms 後に IDB へ保存
+        var saveTimer = null;
+        row.querySelectorAll('[data-field]').forEach(function(input) {
+          var fieldName = input.dataset.field;
+          input.addEventListener('input', function() {
+            if (saveTimer) clearTimeout(saveTimer);
+            saveTimer = setTimeout(function() {
+              item[fieldName] = input.value;
+              adminDBPut('photos', item).then(function() {
+                renderAlbum(); // Home の Album を即更新
+                setAlbumStatus('✓ 自動保存', false);
+              }).catch(function(err) {
+                try { logger.warn('[album-admin] save failed:', err); } catch (e) {}
+                setAlbumStatus('⚠ 保存失敗', true);
+              });
+            }, 500);
+          });
+        });
+      });
+    }).catch(function(err) {
+      ed.innerHTML = '';
+      var e2 = document.createElement('div');
+      e2.style.cssText = 'padding: 16px; text-align: center; color: #c44; font-size: 11.5px;';
+      e2.textContent = '読み込み失敗: ' + (err.message || err);
+      ed.appendChild(e2);
+    });
+  }
+
 
   /**
    * Admin を開いた時に、IndexedDB から BGM を取り出して audio.src に設定する。
@@ -7934,6 +9550,10 @@
 
     // ストレージ使用量
     updateAdminStorage();
+
+    // Album 関連を再描画（Memory写真の変更が Album にも反映されるように）
+    try { renderAlbum(); } catch (e) {}
+    try { renderAlbumEditor(); } catch (e) {}
   }
 
   function renderAdminList(containerId, items, storeName, emoji) {
@@ -8316,6 +9936,8 @@
   loadAdminSettings();
   bindBgmFabAudioEvents();
   updateBgmFabVisibility();
+  renderSchedule();
+  renderAlbum();
 
   // 開発用：URLに ?dev=... で直接ジャンプ
   var devParam = new URLSearchParams(window.location.search).get('dev');
