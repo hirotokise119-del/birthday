@@ -6720,6 +6720,20 @@
     } catch (e) { /* localStorage使えない環境は無視 */ }
   })();
 
+  // ============================================
+  // ★ スケジュール強制リセット（初回のみ）
+  // 古いscheduleデータをlocalStorageから削除して最新のデフォルトを使わせる。
+  // ============================================
+  (function forceScheduleReset() {
+    try {
+      var DONE_KEY = 'scheduleForced_v1';
+      if (localStorage.getItem(DONE_KEY) === 'done') return; // 2回目以降はスキップ
+
+      localStorage.removeItem('scheduleItems_v1'); // 古いスケジュールを削除
+      localStorage.setItem(DONE_KEY, 'done');
+    } catch (e) {}
+  })();
+
   // 起動時に即座に読み込む（CONFIG を即上書き）
   loadTimelockConfig();
 
